@@ -1,0 +1,37 @@
+# clangd picks this up for every file under the repo. Mirrors the Makefile so
+# the editor and the compiler disagree about nothing.
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -Wall
+    - -Wextra
+    - -Wpedantic
+    - -Wshadow
+    - -Wconversion
+    - -Wsign-conversion
+    - -Wold-style-cast
+    - -Wno-gnu-anonymous-struct
+    - -Wno-nested-anon-types
+    - -Isrc
+    - -Ivendor/metal-cpp
+    - -DBLACKSMITH_ROOT=""
+  Compiler: clang++
+
+Diagnostics:
+  UnusedIncludes: Strict
+  ClangTidy:
+    Add:
+      - bugprone-*
+      - cppcoreguidelines-owning-memory
+      - cppcoreguidelines-no-malloc
+      - cppcoreguidelines-special-member-functions
+      - modernize-use-nullptr
+      - modernize-use-override
+      - performance-*
+    Remove:
+      - bugprone-easily-swappable-parameters
+
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes

@@ -1,0 +1,29 @@
+# clang-format for Blacksmith. LLVM base, 4-space indent, 100 columns so a
+# renderer line with an ANSI escape and a comment still fits.
+BasedOnStyle: LLVM
+Standard: c++20
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+ReferenceAlignment: Left
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<(Metal|Foundation|QuartzCore)/'
+    Priority: 3
+  - Regex: '^<(mach|sys|IOKit|CoreFoundation)/'
+    Priority: 3
+  - Regex: '^<'
+    Priority: 2
+SortIncludes: CaseSensitive
+SpaceAfterCStyleCast: false
+FixNamespaceComments: true

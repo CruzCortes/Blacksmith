@@ -1,0 +1,21 @@
+# build output
+build/
+*.o
+*.d
+*.dSYM/
+a.out
+
+# clangd / editor caches
+.cache/
+compile_commands.json
+.vscode/
+.idea/
+*.swp
+
+# session exports (phase 5) are data, not source
+sessions/
+
+# vendor/metal-cpp IS committed on purpose so the repo builds offline.
+
+# macOS
+.DS_Store
