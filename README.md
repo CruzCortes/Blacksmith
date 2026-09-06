@@ -1,4 +1,4 @@
 # Blacksmith
 Blacksmith: a live, dependency-free system monitor for Apple Silicon and Metal that shows what your machine is actually doing under load.
 
-![Blacksmith Banner](res/Blacksmith-logo.png)
+![Blacksmith Banner](res/Blacksmith-logo-white-bg.png)
