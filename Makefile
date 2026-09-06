@@ -2,9 +2,11 @@
 #  Blacksmith -- live, dependency-free system monitor for Apple Silicon.
 #
 #      make            debug build   (ASan + UBSan, -O0, every warning on)
-#      make run        build + run
+#      make test       build + run every tests/*.cpp against src/
+#      make test T=cpu build + run just tests/test_cpu.cpp
+#      make run        build + run the monitor (needs src/main.cpp, later)
 #      make release    optimised build, no sanitizers  -> build/release/blacksmith
-#      make vendor     fetch metal-cpp into vendor/     (needed from task 1.10)
+#      make vendor     fetch metal-cpp into vendor/     (needed from task 0.10)
 #      make check      compile every source file, link nothing
 #      make clean
 #
@@ -12,22 +14,30 @@
 #  third-party libraries. metal-cpp is header-only and vendored so the repo
 #  builds offline; it is the only thing under vendor/.
 #
+#  Layout:  src/    the library (samplers, model) and later main.cpp + the TUI
+#           tests/  one small main() per file, linked against src/ minus main
+#           dev/    specs, primers and grades, one folder per phase
+#
 #  Frameworks, and the phase that needs each:
-#      Foundation, Metal          phase 1  recommendedMaxWorkingSetSize
-#      IOKit, CoreFoundation      phase 4  accelerator statistics
+#      Foundation, Metal          dev/00   recommendedMaxWorkingSetSize
+#      IOKit, CoreFoundation      dev/04   accelerator statistics
 #  Mach (host_statistics64, host_processor_info) and sysctl live in libSystem
 #  and need nothing extra.
 # ============================================================================
 
-CXX ?= clang++
+# make has a built-in CXX=c++, so ?= would never win. Override only that.
+ifeq ($(origin CXX),default)
+CXX := clang++
+endif
 
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SRC      := $(ROOT)/src
+TESTDIR  := $(ROOT)/tests
 METALCPP := $(ROOT)/vendor/metal-cpp
 
 # ---------------------------------------------------------------------------
-#  Warnings. Strict on purpose: the traps in TODO.md are all things a warning
-#  can catch before the terminal does.
+#  Warnings. Strict on purpose: the traps in each SPEC.md are all things a
+#  warning can catch before the terminal does.
 #      -Wconversion -Wsign-conversion   signed maths on 32-bit tick counters
 #      -Wshadow                         a loop variable hiding a member
 #      -Wold-style-cast                 C casts around Mach out-parameters
@@ -48,18 +58,28 @@ RELEASE_FLAGS := -O2 -DNDEBUG
 FRAMEWORKS := -framework Foundation -framework Metal \
               -framework IOKit -framework CoreFoundation
 
-# Sanitizer runtime options for `make run`. halt_on_error so the terminal is
-# restored by the RawMode destructor before the report scrolls past.
+# Sanitizer runtime options. halt_on_error so the terminal is restored by the
+# RawMode destructor before the report scrolls past.
 ASAN_ENV := ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
             UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 
 SOURCES := $(wildcard $(SRC)/*.cpp)
 OBJS    := $(patsubst $(SRC)/%.cpp,build/debug/%.o,$(SOURCES))
 ROBJS   := $(patsubst $(SRC)/%.cpp,build/release/%.o,$(SOURCES))
+LIBOBJS := $(filter-out build/debug/main.o,$(OBJS))
 
-.PHONY: all run release vendor check clean help
+# T=cpu selects tests/test_cpu.cpp; no T runs them all.
+TESTS    := $(if $(T),$(TESTDIR)/test_$(T).cpp,$(wildcard $(TESTDIR)/test_*.cpp))
+TESTBINS := $(patsubst $(TESTDIR)/%.cpp,build/tests/%,$(TESTS))
 
+.PHONY: all run release vendor check test clean help
+
+# Until src/main.cpp exists there is nothing to link, so `make` compiles.
+ifneq ($(wildcard $(SRC)/main.cpp),)
 all: build/debug/blacksmith
+else
+all: check
+endif
 
 build/debug/%.o: $(SRC)/%.cpp
 	@mkdir -p $(@D)
@@ -72,12 +92,10 @@ build/release/%.o: $(SRC)/%.cpp
 	@$(CXX) $(CXXFLAGS) $(RELEASE_FLAGS) -c $< -o $@
 
 build/debug/blacksmith: $(OBJS)
-	@if [ -z "$(SOURCES)" ]; then echo "  no sources in src/ yet -- see TODO.md task 1.1"; exit 1; fi
 	@echo "  LNK  build/debug/blacksmith"
 	@$(CXX) $(DEBUG_FLAGS) $(OBJS) -o $@ $(FRAMEWORKS)
 
 build/release/blacksmith: $(ROBJS)
-	@if [ -z "$(SOURCES)" ]; then echo "  no sources in src/ yet -- see TODO.md task 1.1"; exit 1; fi
 	@echo "  LNK  build/release/blacksmith"
 	@$(CXX) $(RELEASE_FLAGS) $(ROBJS) -o $@ $(FRAMEWORKS)
 
@@ -87,7 +105,22 @@ run: build/debug/blacksmith
 release: build/release/blacksmith
 
 check: $(OBJS)
-	@echo "  ok   $(words $(OBJS)) object(s)"
+	@if [ -z "$(SOURCES)" ]; then echo "  src/ is empty -- start at dev/00/SPEC.md task 0.1"; \
+	 else echo "  ok   $(words $(OBJS)) object(s)"; fi
+
+# Each test is its own program: tests/test_cpu.cpp -> build/tests/test_cpu.
+# It links every src/ object except main.o, so a test sees exactly what the
+# monitor sees. A test that fails to compile is a deliverable not written yet.
+build/tests/%: $(TESTDIR)/%.cpp $(LIBOBJS) $(TESTDIR)/check.hpp
+	@mkdir -p $(@D)
+	@echo "  CXX  tests/$*.cpp"
+	@$(CXX) $(CXXFLAGS) $(DEBUG_FLAGS) -I $(TESTDIR) $< $(LIBOBJS) -o $@ $(FRAMEWORKS)
+
+test: $(TESTBINS)
+	@fail=0; for t in $(TESTBINS); do \
+	   printf '\n  ---- %s ----\n' "$$(basename $$t)"; \
+	   $(ASAN_ENV) $$t || fail=1; done; \
+	 printf '\n'; [ $$fail -eq 0 ] && echo "  all tests passed" || { echo "  FAILURES above"; exit 1; }
 
 # metal-cpp is Apple's, Apache 2.0. The mirror tracks the zip Apple publishes
 # at developer.apple.com/metal/cpp. Shallow clone, then the .git is dropped so
@@ -106,4 +139,4 @@ clean:
 help:
 	@sed -n '2,12p' $(ROOT)/Makefile | sed 's/^# \{0,1\}//'
 
--include $(OBJS:.o=.d) $(ROBJS:.o=.d)
+-include $(OBJS:.o=.d) $(ROBJS:.o=.d) $(TESTBINS:=.d)

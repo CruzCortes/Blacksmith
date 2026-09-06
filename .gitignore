@@ -17,5 +17,8 @@ sessions/
 
 # vendor/metal-cpp IS committed on purpose so the repo builds offline.
 
+# dev
+dev/
+
 # macOS
 .DS_Store

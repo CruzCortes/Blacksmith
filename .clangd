@@ -13,12 +13,13 @@ CompileFlags:
     - -Wno-gnu-anonymous-struct
     - -Wno-nested-anon-types
     - -Isrc
+    - -Itests
     - -Ivendor/metal-cpp
     - -DBLACKSMITH_ROOT=""
   Compiler: clang++
 
 Diagnostics:
-  UnusedIncludes: Strict
+  UnusedIncludes: None
   ClangTidy:
     Add:
       - bugprone-*

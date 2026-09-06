@@ -1,0 +1,32 @@
+// Minimal test harness. No framework: a counter and a macro.
+//
+//     CHECK(expr);          records pass or fail, prints the failing line
+//     return DONE();        prints the tally, returns 1 if anything failed
+//
+// Tests are small programs that also PRINT what they measured, so a red
+// check comes with the number that caused it right above.
+#pragma once
+
+#include <cstdint>
+#include <cstdio>
+
+namespace check {
+inline int passed = 0;
+inline int failed = 0;
+
+// bytes -> GB as a double, for printing only. Never store a GB anywhere.
+inline double gb(std::uint64_t bytes) { return static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0); }
+} // namespace check
+
+#define CHECK(expr)                                                                          \
+    do {                                                                                     \
+        if (expr) {                                                                          \
+            ++check::passed;                                                                 \
+        } else {                                                                             \
+            ++check::failed;                                                                 \
+            std::printf("  FAIL  %s:%d   %s\n", __FILE__, __LINE__, #expr);                   \
+        }                                                                                    \
+    } while (0)
+
+#define DONE()                                                                               \
+    (std::printf("  %d passed, %d failed\n", check::passed, check::failed), check::failed ? 1 : 0)
