@@ -1,10 +1,11 @@
-// Minimal test harness. No framework: a counter and a macro.
+// check -- a test harness in one header. No framework: a counter and a macro.
 //
 //     CHECK(expr);          records pass or fail, prints the failing line
 //     return DONE();        prints the tally, returns 1 if anything failed
 //
-// Tests are small programs that also PRINT what they measured, so a red
-// check comes with the number that caused it right above.
+// Lives in intern/ because nothing in it is Blacksmith-specific. Tests also
+// PRINT what they measured, so a red check comes with the number that
+// caused it right above.
 #pragma once
 
 #include <cstdint>

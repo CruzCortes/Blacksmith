@@ -1,4 +1,4 @@
-// test_mem -- covers dev/00 task 0.9.
+// sample_mach_vm_test -- covers dev/00 task 0.9.
 //
 // What it proves:
 //   * Ledger.total is hw.memsize, straight from the kernel
@@ -7,26 +7,21 @@
 //     figure under 1 GB, which this machine has not seen since boot
 //   * swap and pressure are in range
 
-#include "check.hpp"
-#include "mem.hpp"
+#include "model/memory.hh"
+#include "sample/intern/sysctl.hh"
+#include "sample/sample.hh"
 
+#include "check/check.hh"
+
+#include <cstdint>
 #include <cstdio>
-
-#include <sys/sysctl.h>
-
-static std::uint64_t memsize() {
-    std::uint64_t v = 0;
-    std::size_t len = sizeof(v);
-    sysctlbyname("hw.memsize", &v, &len, nullptr, 0);
-    return v;
-}
 
 int main() {
     using namespace blacksmith;
     using check::gb;
 
-    Ledger l{};
-    sampleMemory(l);
+    model::Ledger l;
+    sample::memory(l);
 
     std::printf("  total       %6.2f GB\n", gb(l.total));
     std::printf("  free        %6.2f GB\n", gb(l.free));
@@ -37,7 +32,9 @@ int main() {
     std::printf("  swap        %6.2f / %.2f GB\n", gb(l.swapUsed), gb(l.swapTotal));
     std::printf("  pressure    %d\n\n", l.pressure);
 
-    CHECK(l.total == memsize());
+    std::uint64_t memsize = 0;
+    sample::sysctlRead("hw.memsize", &memsize, sizeof(memsize));
+    CHECK(l.total == memsize);
 
     const std::uint64_t accounted = l.free + l.active + l.inactive + l.wired + l.compressed;
     std::printf("  accounted   %6.2f GB  (%.0f%% of total)\n\n", gb(accounted),

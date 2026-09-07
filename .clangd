@@ -12,9 +12,9 @@ CompileFlags:
     - -Wold-style-cast
     - -Wno-gnu-anonymous-struct
     - -Wno-nested-anon-types
-    - -Isrc
-    - -Itests
-    - -Ivendor/metal-cpp
+    - -Isource/blacksmith
+    - -Iintern
+    - -Iextern/metal-cpp
     - -DBLACKSMITH_ROOT=""
   Compiler: clang++
 

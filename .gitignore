@@ -15,7 +15,7 @@ compile_commands.json
 # session exports (phase 5) are data, not source
 sessions/
 
-# vendor/metal-cpp IS committed on purpose so the repo builds offline.
+# extern/metal-cpp IS committed on purpose so the repo builds offline.
 
 # dev
 dev/

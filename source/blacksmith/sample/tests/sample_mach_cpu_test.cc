@@ -1,19 +1,22 @@
-// test_cpu -- covers dev/00 tasks 0.2 to 0.7.
+// sample_mach_cpu_test -- covers dev/00 tasks 0.3 to 0.6.
 //
 // What it proves:
-//   * cpuTopology() agrees with the number of online processors
-//   * sampleCpu() fills one CoreTicks per core, and every core has ticked
-//   * perCorePercent() is the right length and every value is 0..100
-//   * a second sampleCpu() into the same struct does not change its size
+//   * sample::cpu() fills one CoreTicks per online core, and every core has ticked
+//   * a second call into the same struct does not change its size
+//   * with perCorePercent, a core that was spun shows up busy
+//   * run under ASan: a wrong deallocator (task 0.4) is reported here
 //
 // Apple Silicon numbers the E cluster first: cores 0..E-1 are E, the rest
 // are P. The labels below rely on that. Your TUI will too.
 
-#include "check.hpp"
-#include "cpu.hpp"
+#include "model/cpu.hh"
+#include "sample/sample.hh"
+
+#include "check/check.hh"
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 
 #include <unistd.h>
@@ -28,29 +31,24 @@ static void spin(int ms) {
 int main() {
     using namespace blacksmith;
 
-    const CpuTopology topo = cpuTopology();
-    const auto online = static_cast<unsigned>(sysconf(_SC_NPROCESSORS_ONLN));
-    std::printf("  topology   P=%u  E=%u   online=%u\n", topo.performance, topo.efficiency, online);
-    CHECK(topo.performance > 0);
-    CHECK(topo.efficiency > 0);
-    CHECK(topo.performance + topo.efficiency == online);
+    const auto online = static_cast<std::size_t>(sysconf(_SC_NPROCESSORS_ONLN));
+    const model::CpuTopology topo = sample::cpuTopology();
 
-    CpuSample before;
-    sampleCpu(before);
+    model::CpuSample before;
+    sample::cpu(before);
     CHECK(before.cores.size() == online);
-    for (const CoreTicks& c : before.cores) {
-        std::uint64_t total = 0;
-        for (std::uint64_t t : c.state) total += t;
+    for (const model::CoreTicks& c : before.cores) {
+        const std::uint64_t total = std::uint64_t{c.user} + c.system + c.idle + c.nice;
         CHECK(total > 0); // a core that has never ticked is a stride bug
     }
 
     spin(300);
 
-    CpuSample after;
-    sampleCpu(after);
+    model::CpuSample after;
+    sample::cpu(after);
     CHECK(after.cores.size() == before.cores.size());
 
-    const std::vector<double> pct = perCorePercent(before, after);
+    const std::vector<double> pct = model::perCorePercent(before, after);
     CHECK(pct.size() == before.cores.size());
 
     std::printf("\n");
@@ -65,14 +63,16 @@ int main() {
     }
     std::printf("\n");
 
-    // At least one core did the spin.
     bool someoneBusy = false;
     for (double p : pct) someoneBusy = someoneBusy || p > 50.0;
     CHECK(someoneBusy);
 
     // Reuse the caller's struct: size must not drift.
-    sampleCpu(before);
+    sample::cpu(before);
     CHECK(before.cores.size() == online);
+
+    // A leak or a double free shows here under ASan, not in the checks.
+    for (int i = 0; i < 200; ++i) sample::cpu(after);
 
     return DONE();
 }

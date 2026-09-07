@@ -1,16 +1,18 @@
-// test_snapshot -- covers dev/00 task 0.11, and is the picture the TUI
-// will draw in dev/03. When this output looks right to you, phase 00 is
+// sample_snapshot_test -- covers dev/00 task 0.11, and is the picture the
+// TUI will draw in dev/03. When this output looks right to you, phase 00 is
 // done in every way that matters.
 //
 // What it proves:
-//   * sample(Snapshot&) fills all three parts in one call
-//   * the parts agree with each other: core count matches topology, the
-//     GPU ceiling fits inside physical memory
+//   * sample::snapshot() fills all three parts in one call
+//   * the parts agree: core count matches topology, the GPU ceiling fits
+//     inside physical memory
 //   * the one number that panics the machine, wired against the ceiling,
 //     can be computed from a single Snapshot
 
-#include "check.hpp"
-#include "model.hpp"
+#include "model/snapshot.hh"
+#include "sample/sample.hh"
+
+#include "check/check.hh"
 
 #include <chrono>
 #include <cstdio>
@@ -21,7 +23,11 @@ static void spin(int ms) {
     while (std::chrono::steady_clock::now() < until) sink = sink + 1;
 }
 
+// Clamped, so a NaN or an over-full gauge from a half-done sampler draws an
+// empty or a full bar instead of aborting on the double-to-int conversion.
 static void bar(double fraction, int cells) {
+    if (!(fraction > 0.0)) fraction = 0.0;
+    if (fraction > 1.0) fraction = 1.0;
     const int filled = static_cast<int>(fraction * cells);
     for (int k = 0; k < cells; ++k) std::printf("%s", k < filled ? "#" : ".");
 }
@@ -30,13 +36,13 @@ int main() {
     using namespace blacksmith;
     using check::gb;
 
-    Snapshot a{}, b{};
-    sample(a);
+    model::Snapshot a, b;
+    sample::snapshot(a);
     spin(300);
-    sample(b);
+    sample::snapshot(b);
 
-    const CpuTopology topo = cpuTopology();
-    const std::vector<double> pct = perCorePercent(a.cpu, b.cpu);
+    const model::CpuTopology topo = sample::cpuTopology();
+    const std::vector<double> pct = model::perCorePercent(a.cpu, b.cpu);
 
     std::printf("  blacksmith . snapshot\n\n");
     std::printf("  cpu   P=%u  E=%u\n", topo.performance, topo.efficiency);
@@ -46,7 +52,7 @@ int main() {
         std::printf("  %5.1f%%\n", pct[i]);
     }
 
-    const Ledger& m = b.mem;
+    const model::Ledger& m = b.memory;
     std::printf("\n  memory        %6.2f GB total\n", gb(m.total));
     std::printf("  free          %6.2f GB\n", gb(m.free));
     std::printf("  active        %6.2f GB\n", gb(m.active));
@@ -56,7 +62,8 @@ int main() {
     std::printf("  swap          %6.2f GB of %.2f\n", gb(m.swapUsed), gb(m.swapTotal));
     std::printf("  pressure      %d\n", m.pressure);
 
-    const double wiredOfCeiling = static_cast<double>(m.wired) / static_cast<double>(b.gpuCeiling);
+    const double wiredOfCeiling =
+        b.gpuCeiling ? static_cast<double>(m.wired) / static_cast<double>(b.gpuCeiling) : 0.0;
     std::printf("\n  gpu ceiling   %6.2f GB\n", gb(b.gpuCeiling));
     std::printf("  wired/ceiling ");
     bar(wiredOfCeiling, 30);
