@@ -12,12 +12,12 @@ compile_commands.json
 .idea/
 *.swp
 
-# session exports (phase 5) are data, not source
+# recorded sessions are data, not source
 sessions/
 
 # extern/metal-cpp IS committed on purpose so the repo builds offline.
 
-# dev
+# local working notes, not part of the project
 dev/
 
 # macOS

@@ -1,8 +1,6 @@
-// sample_snapshot_test -- covers dev/00 task 0.11, and is the picture the
-// TUI will draw in dev/03. When this output looks right to you, phase 00 is
-// done in every way that matters.
+// sample::snapshot end to end. Prints the same picture the UI draws.
 //
-// What it proves:
+// Checks:
 //   * sample::snapshot() fills all three parts in one call
 //   * the parts agree: core count matches topology, the GPU ceiling fits
 //     inside physical memory
@@ -73,7 +71,7 @@ int main() {
     CHECK(pct.size() == b.cpu.cores.size());
     CHECK(m.total > 0);
     CHECK(b.gpuCeiling > 0 && b.gpuCeiling < m.total);
-    CHECK(m.wired < b.gpuCeiling); // if this fails, the machine is about to tell you itself
+    CHECK(m.wired < b.gpuCeiling); // above the ceiling the kernel starts killing processes
 
     return DONE();
 }

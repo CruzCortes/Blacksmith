@@ -1,6 +1,6 @@
-// sample_metal_test -- covers dev/00 task 0.10.
+// sample::gpuWorkingSetLimit against the default Metal device.
 //
-// What it proves:
+// Checks:
 //   * there is a Metal device and it reports a working-set ceiling
 //   * the ceiling is below physical memory and above half of it
 //     (Apple sets it near 75% on unified-memory Macs)

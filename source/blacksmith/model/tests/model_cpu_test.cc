@@ -1,9 +1,8 @@
-// model_cpu_test -- covers dev/00 task 0.7.
+// perCorePercent on hand-made tick counts.
 //
-// No OS calls. The ticks are hand-made, so every answer is known before the
-// test runs. This is what keeping perCorePercent in model/ buys you: a
-// deterministic test, including the one case (counter wrap) that a live
-// machine would take 497 days to produce.
+// No OS calls, so every expected value is known before the test runs. This
+// includes the 32-bit counter wrap, which a live machine takes 497 days to
+// produce.
 
 #include "model/cpu.hh"
 

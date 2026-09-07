@@ -4,10 +4,10 @@
 #      make                 debug build   (ASan + UBSan, -O0, every warning on)
 #      make test            build + run every */tests/*_test.cc
 #      make test T=mach_cpu build + run just sample_mach_cpu_test.cc
-#      make lint            enforce the dependency rules in dev/DESIGN.md
-#      make run             build + run the monitor (needs main/main.cc, dev/03)
+#      make lint            enforce the module dependency rules (see below)
+#      make run             build + run the monitor (needs main/main.cc)
 #      make release         optimised, no sanitizers -> build/release/blacksmith
-#      make extern          fetch metal-cpp into extern/   (needed from task 0.10)
+#      make extern          fetch metal-cpp into extern/
 #      make check           compile every source file, link nothing
 #      make clean
 #
@@ -15,7 +15,7 @@
 #  third-party libraries. metal-cpp is header-only and vendored so the repo
 #  builds offline; it is the only thing under extern/.
 #
-#  Layout (dev/DESIGN.md):
+#  Layout:
 #      source/blacksmith/<module>/x.hh          public header     namespace blacksmith::<module>
 #      source/blacksmith/<module>/intern/x.cc   implementation, private headers
 #      source/blacksmith/<module>/tests/<module>_x_test.cc
@@ -35,8 +35,8 @@ INTERN := $(ROOT)/intern
 EXTERN := $(ROOT)/extern
 
 # ---------------------------------------------------------------------------
-#  Warnings. Strict on purpose: the traps in each SPEC.md are all things a
-#  warning can catch before the terminal does.
+#  Warnings. Strict on purpose: the classic mistakes around Mach and sysctl
+#  are all things a warning can catch before the terminal does.
 #      -Wconversion -Wsign-conversion   signed maths on 32-bit tick counters
 #      -Wshadow                         a loop variable hiding a member
 #      -Wold-style-cast                 C casts around Mach out-parameters
@@ -51,12 +51,12 @@ CXXFLAGS := -std=c++20 $(WARN) -I $(SRC) -I $(INTERN) -I $(EXTERN)/metal-cpp \
             -ffile-prefix-map=$(ROOT)/= -DBLACKSMITH_ROOT=\"$(ROOT)\" -MMD -MP
 
 # Debug is the default: a monitor that leaks a Mach buffer once a second is
-# exactly what ASan exists for. Release is for the numbers you quote.
+# exactly what ASan exists for. Release is for measurements worth quoting.
 DEBUG_FLAGS   := -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer
 RELEASE_FLAGS := -O2 -DNDEBUG
 
-# Foundation + Metal from dev/00, IOKit + CoreFoundation from dev/04. Mach
-# and sysctl live in libSystem and need nothing.
+# Foundation + Metal for the GPU ceiling, IOKit + CoreFoundation for GPU
+# utilisation and power. Mach and sysctl live in libSystem and need nothing.
 FRAMEWORKS := -framework Foundation -framework Metal \
               -framework IOKit -framework CoreFoundation
 
@@ -112,12 +112,11 @@ run: build/debug/blacksmith
 release: build/release/blacksmith
 
 check: $(LIB_OBJS)
-	@if [ -z "$(LIB_CC)" ]; then echo "  no sources yet -- start at dev/00/SPEC.md task 0.1"; \
+	@if [ -z "$(LIB_CC)" ]; then echo "  no sources under source/blacksmith/*/intern/"; \
 	 else echo "  ok   $(words $(LIB_OBJS)) object(s)"; fi
 
 # A test is its own program linked against every intern/ object, so it sees
-# exactly what the monitor sees. A test that fails to compile is a
-# deliverable not written yet.
+# exactly what the monitor sees.
 build/tests/%: $(SRC)/%_test.cc $(LIB_OBJS) $(INTERN)/check/check.hh
 	@mkdir -p $(@D)
 	@echo "  CXX  $*_test.cc"
@@ -131,8 +130,9 @@ test: lint $(TEST_BINS)
 	 printf '\n'; [ $$fail -eq 0 ] && echo "  all tests passed" || { echo "  FAILURES above"; exit 1; }
 
 # ---------------------------------------------------------------------------
-#  dev/DESIGN.md rules 1 and 2, mechanically.
-#    * model/ includes no OS header and no other module.
+#  Module dependency rules, enforced mechanically.
+#    * model/ depends on nothing: no OS header, no other module.
+#    * sample/ depends on model/ only; ui/, record/, inox/ depend on model/.
 #    * only sample/intern/ includes Mach, sysctl, Metal, IOKit.
 #    * a module's intern/ is included only from inside that module.
 #    * headers never `using namespace`.
@@ -148,7 +148,7 @@ lint:
 	   if grep -En '#include "[a-z]+/intern/' "$$f" | grep -v "\"$$mod/intern/"; then bad=1; fi; \
 	 done; \
 	 if grep -rEn --include='*.hh' '^\s*using namespace' $(SRC) $(INTERN); then bad=1; fi; \
-	 if [ $$bad -ne 0 ]; then echo "  lint: the lines above break dev/DESIGN.md"; exit 1; \
+	 if [ $$bad -ne 0 ]; then echo "  lint: the lines above break the module dependency rules"; exit 1; \
 	 else echo "  lint ok"; fi
 
 # metal-cpp is Apple's, Apache 2.0. The mirror tracks the zip Apple publishes

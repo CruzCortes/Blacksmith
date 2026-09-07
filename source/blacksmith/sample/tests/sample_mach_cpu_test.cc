@@ -1,13 +1,13 @@
-// sample_mach_cpu_test -- covers dev/00 tasks 0.3 to 0.6.
+// sample::cpu against the live machine.
 //
-// What it proves:
-//   * sample::cpu() fills one CoreTicks per online core, and every core has ticked
+// Checks:
+//   * one CoreTicks per online core, and every core has ticked
 //   * a second call into the same struct does not change its size
 //   * with perCorePercent, a core that was spun shows up busy
-//   * run under ASan: a wrong deallocator (task 0.4) is reported here
+//   * under ASan, a mismatched deallocator for the Mach buffer is reported here
 //
 // Apple Silicon numbers the E cluster first: cores 0..E-1 are E, the rest
-// are P. The labels below rely on that. Your TUI will too.
+// are P. The labels below rely on that, as does the UI.
 
 #include "model/cpu.hh"
 #include "sample/sample.hh"

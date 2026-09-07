@@ -1,12 +1,12 @@
-// sample_sysctl_test -- covers dev/00 tasks 0.2 and 0.9.
+// cpuTopology and the private sysctlRead helper.
 //
-// What it proves:
+// Checks:
 //   * cpuTopology() agrees with the number of online processors
-//   * sysctlRead() says true only when the kernel filled exactly the bytes
-//     you offered: wrong size and unknown name both come back false
+//   * sysctlRead() returns true only when the kernel filled exactly the
+//     requested size: wrong size and unknown name both return false
 //
-// sysctlRead is private to the sample module (sample/intern/). A module's
-// own tests may include its intern/ headers. Nothing else may.
+// sysctlRead is private to the sample module. A module's own tests may
+// include its intern/ headers; nothing outside the module may.
 
 #include "sample/intern/sysctl.hh"
 #include "sample/sample.hh"

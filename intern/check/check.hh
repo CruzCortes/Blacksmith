@@ -3,9 +3,9 @@
 //     CHECK(expr);          records pass or fail, prints the failing line
 //     return DONE();        prints the tally, returns 1 if anything failed
 //
-// Lives in intern/ because nothing in it is Blacksmith-specific. Tests also
-// PRINT what they measured, so a red check comes with the number that
-// caused it right above.
+// Lives in intern/ because nothing in it is Blacksmith-specific. Tests print
+// what they measured before checking it, so a failure comes with the number
+// that caused it.
 #pragma once
 
 #include <cstdint>

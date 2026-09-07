@@ -1,6 +1,6 @@
-// sample_mach_vm_test -- covers dev/00 task 0.9.
+// sample::memory against the live machine.
 //
-// What it proves:
+// Checks:
 //   * Ledger.total is hw.memsize, straight from the kernel
 //   * the five page-backed rows sum to at most total, and to most of it
 //   * every row is in BYTES. A forgotten page multiply shows up as a wired
