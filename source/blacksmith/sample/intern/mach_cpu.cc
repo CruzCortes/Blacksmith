@@ -3,35 +3,43 @@
  *
  *  Author: Gonzalo Cruz Cortes
  *
- *  Two orderings to keep straight. sysctl numbers performance levels by
- *  speed, so hw.perflevel0 is Performance and hw.perflevel1 is Efficiency.
- *  The per-core array Mach returns runs the other way: efficiency cores
- *  occupy the low indices. On an M2 Max that is 8 performance and 4
- *  efficiency, indices 0 to 3 being the efficiency cluster.
+ *  Apple orders core clusters fastest first, so level 0 is always the quick
+ *  one. The names are not fixed: M1 through M4 call the two levels
+ *  Performance and Efficiency, M5 calls level 0 Super. Read hw.nperflevels
+ *  and index off it instead of spelling a digit into the key.
+ *
+ *  The per-core array Mach returns runs the other way round: efficiency
+ *  cores occupy the low indices.
  */
 
  #include "sample/sample.hh"
  #include <sys/sysctl.h>
  #include <cstddef>
  #include <cstdint>
+ #include <cstdio>
 
  namespace blacksmith::sample {
     
     model::CpuTopology cpuTopology() {
         model::CpuTopology t;
 
-        std::uint32_t value = 0;
-        std::size_t size = sizeof(value);
+        std::uint32_t levels = 0;
+        std::size_t size = sizeof(levels);
 
-        if (sysctlbyname( "hw.perflevel0.logicalcpu", &value, &size, nullptr, 0 ) == 0 ) {
-            t.performance = value;
+        if ( sysctlbyname( "hw.nperflevels", &levels, &size, nullptr, 0 ) != 0 ) {
+            return t;
         }
 
-        value = 0;
-        size = sizeof(value);
+        for ( std::uint32_t i = 0; i < levels; ++i ) {
+            char key[64];
+            std::snprintf( key, sizeof(key), "hw.perflevel%u.logicalcpu", i );
 
-        if ( sysctlbyname( "hw.perflevel1.logicalcpu", &value, &size, nullptr, 0 ) == 0 ) {
-            t.efficiency = value;
+            std::uint32_t count = 0;
+            size = sizeof(count);
+            if ( sysctlbyname( key, &count, &size, nullptr, 0 ) != 0 ) continue;
+
+            if ( i == 0 ) t.performance = count;
+            else if ( i == 1 ) t.efficiency = count;
         }
 
         return t;
