@@ -9,6 +9,7 @@
 #      make release         optimised, no sanitizers -> build/release/blacksmith
 #      make extern          fetch metal-cpp into extern/
 #      make check           compile every source file, link nothing
+#      make compile_commands   regenerate the editor's index (clangd)
 #      make clean
 #
 #  Toolchain: Apple clang (Xcode 17+), -std=c++20. No package manager, no
@@ -50,6 +51,10 @@ WARN := -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion \
 CXXFLAGS := -std=c++20 $(WARN) -I $(SRC) -I $(INTERN) -I $(EXTERN)/metal-cpp \
             -ffile-prefix-map=$(ROOT)/= -DBLACKSMITH_ROOT=\"$(ROOT)\" -MMD -MP
 
+# Same include paths, minus the -D and prefix-map, for the editor's compile
+# database. No quotes means no JSON escaping.
+IDE_FLAGS := -std=c++20 $(WARN) -I $(SRC) -I $(INTERN) -I $(EXTERN)/metal-cpp
+
 # Debug is the default: a monitor that leaks a Mach buffer once a second is
 # exactly what ASan exists for. Release is for measurements worth quoting.
 DEBUG_FLAGS   := -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -80,7 +85,7 @@ RMAIN_OBJ := $(patsubst $(SRC)/%.cc,build/release/%.o,$(MAIN_CC))
 TESTS     := $(if $(T),$(filter %_$(T)_test.cc,$(TEST_CC)),$(TEST_CC))
 TEST_BINS := $(patsubst $(SRC)/%_test.cc,build/tests/%,$(TESTS))
 
-.PHONY: all run release extern check test lint clean help
+.PHONY: all run release extern check test lint clean help compile_commands
 
 ifneq ($(MAIN_CC),)
 all: build/debug/blacksmith
@@ -161,11 +166,23 @@ extern:
 	@rm -rf $(EXTERN)/metal-cpp/.git
 	@echo "  ok   extern/metal-cpp -- commit it"
 
+# clangd reads this to learn each file's flags. Absolute paths, so it works
+# no matter which directory the editor thinks it is in. Gitignored: the paths
+# are this machine's.
+compile_commands:
+	@printf '[\n' > compile_commands.json
+	@sep=""; for f in $(LIB_CC) $(MAIN_CC) $(TEST_CC); do \
+	   [ -z "$$sep" ] || printf ',\n' >> compile_commands.json; sep=x; \
+	   printf '  {"directory": "$(ROOT)", "file": "%s", "command": "$(CXX) $(IDE_FLAGS) -c %s"}' "$$f" "$$f" >> compile_commands.json; \
+	 done
+	@printf '\n]\n' >> compile_commands.json
+	@echo "  ok   compile_commands.json -- $(words $(LIB_CC) $(MAIN_CC) $(TEST_CC)) file(s)"
+
 clean:
 	@rm -rf build
 	@echo "  cleaned"
 
 help:
-	@sed -n '2,13p' $(ROOT)/Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,14p' $(ROOT)/Makefile | sed 's/^# \{0,1\}//'
 
 -include $(LIB_OBJS:.o=.d) $(RLIB_OBJS:.o=.d) $(MAIN_OBJ:.o=.d) $(TEST_BINS:=.d)
